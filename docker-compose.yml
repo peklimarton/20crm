@@ -1,0 +1,11 @@
+services:
+  web:
+    image: nginx:latest
+    restart: always
+    ports:
+      - "8000:80"
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html
+      - ./style.css:/usr/share/nginx/html/style.css
+      - ./script.js:/usr/share/nginx/html/script.js
+    container_name: web-dev
