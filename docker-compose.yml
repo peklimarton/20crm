@@ -9,3 +9,71 @@ services:
       - ./style.css:/usr/share/nginx/html/style.css
       - ./script.js:/usr/share/nginx/html/script.js
     container_name: web-dev
+  caddy:
+    image: caddy:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      twenty:
+        condition: service_healthy
+
+  twenty:
+    image: twentycrm/twenty:latest
+    restart: always
+    env_file: .env
+    healthcheck:
+      test: curl --fail http://localhost:3000/healthz || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    secrets:
+      - app_secret
+      - db_password
+    user: "1000:1000"
+
+  db:
+    image: postgres:16-alpine
+    restart: always
+    volumes:
+      - ./docker-data/db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=twenty
+      - POSTGRES_DB=twenty
+    secrets:
+      - db_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U twenty"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    user: "1000:1000"
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+secrets:
+  app_secret:
+    file: ./secrets/app_secret
+  db_password:
+    file: ./secrets/db_password
